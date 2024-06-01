@@ -1,4 +1,21 @@
 const User = require('../models/user');
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+dotenv.config();
+
+const secret = process.env.SECRET_TOKEN
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // Use `true` for port 465, `false` for all other ports
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.PASSWORD_USER
+  }
+});
 
 exports.login = async (req,res)=>{
  const {email, password} = req.body
@@ -42,3 +59,53 @@ exports.logout = (req, res) => {
       res.status(401).json({ message: 'Not authenticated' });
     }
   };
+
+  exports.forgetPassword = async (req, res)=>{
+    const {email} = req.body.email;
+    const oldUser = await User.findOne({email})
+    
+    if (!oldUser) {
+      return res.status(404).send('the user not found')
+    } 
+
+    token = jwt.sign({email: oldUser.email}, secret, {expiresIn:'15m'})
+
+    const resetLink = `http://localhost:3000/api/reset-password/${oldUser.id}/${token}`;
+
+    console.log(resetLink)
+
+    const mailOptions = {
+      from: 'no@reply.com',
+      to: oldUser.email,
+      subject: 'Password Reset',
+      text: `Click here to reset your password: ${resetLink}`
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Error sending email:', error);
+        return res.status(500).send('Error sending email');
+      }
+      console.log('Email sent: ' + info.response);
+      res.send('Password reset email sent');
+    });
+  }
+
+  exports.resetPassword = async (req, res) => {
+  try {
+    const {token} = req.params
+    const newPassword = req.body;
+    const comingUserToken = jwt.verify((token, secret))
+    const comingUser = await User.findOne({email : comingUserToken.email})
+ 
+    if (!comingUser) {
+     return res.status(404).send('User not found');
+    }
+ 
+    await User.update(comingUserToken.email,{password:newPassword})
+    res.send('Password has been reset');
+  } catch (error) {
+    res.status(400).send('Invalid or expired token');
+    console.log('here is the error: ' + error)
+  } 
+  }
