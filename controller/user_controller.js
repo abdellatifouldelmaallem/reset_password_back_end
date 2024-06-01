@@ -70,7 +70,7 @@ exports.logout = (req, res) => {
 
     token = jwt.sign({email: oldUser.email}, secret, {expiresIn:'15m'})
 
-    const resetLink = `http://localhost:3000/api/reset-password/${oldUser.id}/${token}`;
+    const resetLink = `http://localhost:3000/api/resetPassword/${oldUser.id}/${token}`;
 
     console.log(resetLink)
 
@@ -91,21 +91,42 @@ exports.logout = (req, res) => {
     });
   }
 
+  // exports.resetPassword = async (req, res) => {
+  // try {
+  //   const {token} = req.params
+  //   const newPassword = req.body.password;
+  //   const comingUserToken = jwt.verify((token, secret))
+  //   const comingUser = await User.findOne({email : comingUserToken.email})
+ 
+  //   if (!comingUser) {
+  //     console.log('here is the error')
+  //    return res.status(404).send('User not found');
+  //   }
+ 
+  //   await User.updateOne({ email: comingUserToken.email }, { password: newPassword });
+  //   res.send('Password has been reset');
+  // } catch (error) {
+  //   res.status(400).send('Invalid or expired token');
+  //   console.log('here is the error: ' + error)
+  // } 
+  // }
+
   exports.resetPassword = async (req, res) => {
-  try {
-    const {token} = req.params
-    const newPassword = req.body;
-    const comingUserToken = jwt.verify((token, secret))
-    const comingUser = await User.findOne({email : comingUserToken.email})
- 
-    if (!comingUser) {
-     return res.status(404).send('User not found');
+    try {
+      const { token } = req.params;
+      const newPassword = req.body.password;
+      const comingUserToken = jwt.verify(token, secret);
+      
+      const comingUser = await User.findOne({ email: comingUserToken.email });
+      
+      if (!comingUser) {
+        return res.status(404).send('User not found');
+      }
+      
+      await User.update({ password: newPassword }, { where: { email: comingUserToken.email } });
+      res.send('Password has been reset');
+    } catch (error) {
+      res.status(400).send('Invalid or expired token');
+      console.log('Error: ' + error);
     }
- 
-    await User.update(comingUserToken.email,{password:newPassword})
-    res.send('Password has been reset');
-  } catch (error) {
-    res.status(400).send('Invalid or expired token');
-    console.log('here is the error: ' + error)
-  } 
-  }
+  };
