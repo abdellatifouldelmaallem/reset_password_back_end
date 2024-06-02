@@ -2,6 +2,7 @@ const User = require('../models/user');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const e = require('express');
 dotenv.config();
 
 const secret = process.env.SECRET_TOKEN
@@ -61,36 +62,42 @@ exports.logout = (req, res) => {
   };
 
   exports.forgetPassword = async (req, res)=>{
-    const {email} = req.body.email;
-    const oldUser = await User.findOne({email})
-    
-    if (!oldUser) {
-      return res.status(404).send('the user not found')
-    } 
 
-    token = jwt.sign({email: oldUser.email}, secret, {expiresIn:'15m'})
-
-    const resetLink = `http://localhost:3000/api/resetPassword/${oldUser.id}/${token}`;
-
-    console.log(resetLink)
-
-    const mailOptions = {
-      from: 'no@reply.com',
-      to: oldUser.email,
-      subject: 'Password Reset',
-      text: `Click here to reset your password: ${resetLink}`
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error('Error sending email:', error);
-        return res.status(500).send('Error sending email');
+    try {
+      const {email} = req.body;
+      const oldUser = await User.findOne({where:{email}});
+  
+      if (!oldUser) {
+        return res.status(403).send('user not found')
       }
-      console.log('Email sent: ' + info.response);
-      res.send('Password reset email sent');
-    });
-  }
+  
+      token = jwt.sign({email: oldUser.email}, secret, {expiresIn:'15m'})
+  
+      const resetLink = `http://localhost:3000/api/resetPassword/${token}`;
+  
+      console.log(resetLink)
+  
+      const mailOptions = {
+        from: 'no@reply.com',
+        to: oldUser.email,
+        subject: 'Password Reset',
+        text: `Click here to reset your password: ${resetLink}`
+      };
+  
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email:', error);
+          return res.status(500).send('Error sending email');
+        }
+        console.log('Email sent: ' + info.response);
+        res.send('Password reset email sent');
+      });
+    } catch (error) {
+      console.error("Error requesting password reset:", error);
+      res.status(500).json({ message: 'Server error.' });
+    }
 
+  }
 
   exports.resetPasswordWithGet = async (req, res) => {
     try {
@@ -104,8 +111,7 @@ exports.logout = (req, res) => {
         return res.status(404).send('User not found');
       }
       
-      await User.update({ password: newPassword }, { where: { email: verificatonToken.email } });
-      res.send('Password has been reset');
+      res.status(200).json({ message: 'Token is valid.' });
     } catch (error) {
       res.status(400).send('Invalid or expired token');
       console.log('Error: ' + error);
@@ -115,7 +121,7 @@ exports.logout = (req, res) => {
   exports.resetPasswordWithPost = async (req, res) => {
     try {
       const { token } = req.params;
-      const { newPassword, confirmedPassword} = req.body;
+      const { password, confirmedPassword} = req.body;
       const verificatonToken = jwt.verify(token, secret);
       
       const userWithNewPW = await User.findOne({ email: verificatonToken.email });
@@ -124,11 +130,11 @@ exports.logout = (req, res) => {
         return res.status(404).send('User not found');
       }
 
-      if (newPassword !== confirmedPassword) {
+      if (password !== confirmedPassword) {
         return res.status(422).send('two password does not match');
       }
       
-      await User.update({ password: newPassword }, { where: { email: verificatonToken.email } });
+      await User.update({ password: password }, { where: { email: verificatonToken.email } });
       res.send('Password has been reset');
     } catch (error) {
       res.status(400).send('Invalid or expired token');
