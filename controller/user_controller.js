@@ -91,39 +91,44 @@ exports.logout = (req, res) => {
     });
   }
 
-  // exports.resetPassword = async (req, res) => {
-  // try {
-  //   const {token} = req.params
-  //   const newPassword = req.body.password;
-  //   const comingUserToken = jwt.verify((token, secret))
-  //   const comingUser = await User.findOne({email : comingUserToken.email})
- 
-  //   if (!comingUser) {
-  //     console.log('here is the error')
-  //    return res.status(404).send('User not found');
-  //   }
- 
-  //   await User.updateOne({ email: comingUserToken.email }, { password: newPassword });
-  //   res.send('Password has been reset');
-  // } catch (error) {
-  //   res.status(400).send('Invalid or expired token');
-  //   console.log('here is the error: ' + error)
-  // } 
-  // }
 
-  exports.resetPassword = async (req, res) => {
+  exports.resetPasswordWithGet = async (req, res) => {
     try {
       const { token } = req.params;
-      const newPassword = req.body.password;
-      const comingUserToken = jwt.verify(token, secret);
+      // const newPassword = req.body.password;
+      const verificatonToken = jwt.verify(token, secret);
       
-      const comingUser = await User.findOne({ email: comingUserToken.email });
+      const userWithNewPW = await User.findOne({ email: verificatonToken.email });
       
-      if (!comingUser) {
+      if (!userWithNewPW) {
         return res.status(404).send('User not found');
       }
       
-      await User.update({ password: newPassword }, { where: { email: comingUserToken.email } });
+      await User.update({ password: newPassword }, { where: { email: verificatonToken.email } });
+      res.send('Password has been reset');
+    } catch (error) {
+      res.status(400).send('Invalid or expired token');
+      console.log('Error: ' + error);
+    }
+  };
+
+  exports.resetPasswordWithPost = async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { newPassword, confirmedPassword} = req.body;
+      const verificatonToken = jwt.verify(token, secret);
+      
+      const userWithNewPW = await User.findOne({ email: verificatonToken.email });
+      
+      if (!userWithNewPW) {
+        return res.status(404).send('User not found');
+      }
+
+      if (newPassword !== confirmedPassword) {
+        return res.status(422).send('two password does not match');
+      }
+      
+      await User.update({ password: newPassword }, { where: { email: verificatonToken.email } });
       res.send('Password has been reset');
     } catch (error) {
       res.status(400).send('Invalid or expired token');
