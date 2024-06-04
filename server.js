@@ -2,6 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
+const cors = require('cors');
 const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -14,6 +15,8 @@ const User = require('./models/user');
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+// Apply the CORS middleware to allow requests from any origin
+app.use(cors());
 
 // Set up session middleware
 app.use(session({
