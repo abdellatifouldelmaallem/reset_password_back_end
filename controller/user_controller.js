@@ -73,7 +73,7 @@ exports.logout = (req, res) => {
   
       token = jwt.sign({email: oldUser.email}, secret, {expiresIn:'15m'})
   
-      const resetLink = `http://localhost:3000/api/resetPassword/${token}`;
+      const resetLink = `http://localhost:3000/reset_password/${token}`;
   
       console.log(resetLink)
   
