@@ -121,23 +121,36 @@ exports.logout = (req, res) => {
   exports.resetPasswordWithPost = async (req, res) => {
     try {
       const { token } = req.params;
-      const { password, confirmedPassword} = req.body;
-      const verificatonToken = jwt.verify(token, secret);
-      
-      const userWithNewPW = await User.findOne({ email: verificatonToken.email });
-      
+      const { password, confirmedPassword } = req.body;
+  
+      if (password !== confirmedPassword) {
+        return res.status(422).send('Passwords do not match');
+      }
+  
+      const verificationToken = jwt.verify(token, secret);
+  
+      const userWithNewPW = await User.findOne({
+        attributes: ['email'],
+        where: { email: verificationToken.email }
+      });
+  
       if (!userWithNewPW) {
         return res.status(404).send('User not found');
       }
-
-      if (password !== confirmedPassword) {
-        return res.status(422).send('two password does not match');
-      }
+  
+      await User.update({ password: password }, { where: { email: verificationToken.email } });
       
-      await User.update({ password: password }, { where: { email: verificatonToken.email } });
-      res.send('Password has been reset');
+      res.send('Password has been reset successfully');
+  
     } catch (error) {
-      res.status(400).send('Invalid or expired token');
-      console.log('Error: ' + error);
+      if (error.name === 'TokenExpiredError') {
+        return res.status(400).send('Token has expired');
+      } else if (error.name === 'JsonWebTokenError') {
+        return res.status(400).send('Invalid token');
+      }
+  
+      console.log('Error:', error);
+      res.status(500).send('Internal server error');
     }
   };
+  
